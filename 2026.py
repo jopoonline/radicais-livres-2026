@@ -45,7 +45,8 @@ GRUPOS_DISCIPULADORES = {
     "Jovens": ["André e Larissa", "Lucas e Rosana", "Deric e Nayara"],
     "Adolescentes": ["Giovana", "Guilherme", "Larissa", "Bella", "Pedro"]
 }
-TODOS_DISCIPULADORES = GRUPOS_DISCIPULADORES["Jovens"] + GRUPOS_DISCIPULADORES["Adolescentes"]
+TODOS_DISCIPULADORES_CODIGO = GRUPOS_DISCIPULADORES["Jovens"] + GRUPOS_DISCIPULADORES["Adolescentes"]
+
 TIPOS = ["Célula", "Culto de Jovens"]
 CORES_AZYK = {"ME": "#00D4FF", "FA": "#0072FF", "VI": "#00E6CC"}
 
@@ -57,26 +58,6 @@ def carregar_dados():
     try:
         df_d = conn.read(spreadsheet=URL_PLANILHA, worksheet="Dizimos", ttl=0)
         df_f = conn.read(spreadsheet=URL_PLANILHA, worksheet="Frequencia", ttl=0)
-        
-        if df_f.empty or "Discipulador" not in df_f.columns:
-            data_f = []
-            for mes in MESES_ORDEM:
-                for disc in TODOS_DISCIPULADORES:
-                    cat = "Jovens" if disc in GRUPOS_DISCIPULADORES["Jovens"] else "Adolescentes"
-                    for tipo in TIPOS:
-                        row = {"Mês": mes, "Discipulador": disc, "Categoria": cat, "Tipo": tipo}
-                        for i in range(1, 6): row[f"S{i}_ME"] = row[f"S{i}_FA"] = row[f"S{i}_VI"] = 0
-                        data_f.append(row)
-            df_f = pd.DataFrame(data_f)
-            
-        if df_d.empty or "Líder" not in df_d.columns:
-            data_d = []
-            for m in MESES_ORDEM:
-                for l in TODOS_DISCIPULADORES:
-                    cat = "Jovens" if l in GRUPOS_DISCIPULADORES["Jovens"] else "Adolescentes"
-                    data_d.append({"Mês": m, "Líder": l, "Categoria": cat, "Valor": 0.0, "Pago": "Não"})
-            df_d = pd.DataFrame(data_d)
-            
         return df_d, df_f
     except:
         return pd.DataFrame(), pd.DataFrame()
@@ -124,7 +105,11 @@ with tab1:
     sabados = obter_sabados_do_mes(mes_sel)
     n_sab = len(sabados)
     
-    df_f_base = st.session_state.df_freq[st.session_state.df_freq["Mês"] == mes_sel].copy()
+    df_f_base = st.session_state.df_freq[
+        (st.session_state.df_freq["Mês"] == mes_sel) & 
+        (st.session_state.df_freq["Discipulador"].isin(TODOS_DISCIPULADORES_CODIGO))
+    ].copy()
+    
     if cat_freq_filt != "Todos":
         df_f_base = df_f_base[df_f_base["Categoria"] == cat_freq_filt]
 
@@ -178,6 +163,7 @@ with tab1:
     st.markdown('<div class="edit-section">', unsafe_allow_html=True)
     st.markdown("### 📝 Lançamento de Frequência")
     modo_edicao = st.toggle("Habilitar Edição", value=False)
+    
     conf_f = {"Mês": None, "Categoria": None, "Discipulador": st.column_config.Column(disabled=True), "Tipo": st.column_config.Column(disabled=True)}
     for i in range(1, 6):
         if i <= n_sab:
@@ -213,7 +199,7 @@ with tab2:
         <p style="font-size:36px; font-weight:900; margin:0;">{formatar_brl(df_pago["Valor"].sum())}</p>
     </div>''', unsafe_allow_html=True)
     
-    c1, c2 = st.columns([2, 1.2]) # Ajuste leve na proporção
+    c1, c2 = st.columns([2, 1.2]) 
     
     with c1:
         st.write("### 📈 Evolução de Arrecadação")
@@ -224,13 +210,9 @@ with tab2:
         st.plotly_chart(fig_l, use_container_width=True)
     
     with c2:
-        m_v = st.selectbox("Status no Mês:", MESES_ORDEM, index=mes_atual_numero-1)
+        m_v = st.selectbox("Status no Mês:", MESES_ORDEM, index=mes_atual_numero-1, key="mes_fin_stat")
         st.write(f"### 🍩 Status: {m_v}")
-        
-        # Filtro para o gráfico de pizza
         df_pizza = df_fin_filtrado[df_fin_filtrado["Mês"] == m_v]
-        
-        # Criação do Gráfico de Pizza (Donut) melhorado
         fig_p = px.pie(
             df_pizza, 
             names='Pago', 
@@ -238,8 +220,6 @@ with tab2:
             color='Pago',
             color_discrete_map={'Sim': '#00D4FF', 'Não': '#EF4444'}
         )
-        
-        # Melhorando o layout para tirar o fundo preto e alinhar
         fig_p.update_layout(
             paper_bgcolor="rgba(0,0,0,0)", 
             plot_bgcolor="rgba(0,0,0,0)", 
@@ -248,10 +228,7 @@ with tab2:
             legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5),
             margin=dict(t=0, b=0, l=0, r=0)
         )
-        
-        # Ajuste de informações no hover e no gráfico
         fig_p.update_traces(textposition='inside', textinfo='percent+label')
-        
         st.plotly_chart(fig_p, use_container_width=True)
 
 # --- ABA 3: ADMIN ---
@@ -279,12 +256,32 @@ if is_admin:
 
         st.divider()
         st.markdown("### 💰 Lançamento de Dízimos")
-        df_ed_diz = st.data_editor(st.session_state.df[st.session_state.df["Mês"] == st.selectbox("Mês de Lançamento:", MESES_ORDEM, index=mes_atual_numero-1, key="adm_m")],
-            use_container_width=True, hide_index=True, column_config={"Mês": None, "Líder": st.column_config.Column(disabled=True), "Categoria": st.column_config.Column(disabled=True)})
+        
+        # --- MELHORIA AQUI: FILTROS DE CATEGORIA PARA DÍZIMOS ---
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            mes_adm = st.selectbox("Mês de Lançamento:", MESES_ORDEM, index=mes_atual_numero-1, key="adm_m")
+        with col_f2:
+            cat_adm = st.radio("Filtrar por Categoria:", ["Jovens", "Adolescentes", "Todos"], horizontal=True, key="cat_adm_fin")
+        
+        # Filtragem do dataframe de edição
+        df_ed_base = st.session_state.df[st.session_state.df["Mês"] == mes_adm].copy()
+        if cat_adm != "Todos":
+            df_ed_base = df_ed_base[df_ed_base["Categoria"] == cat_adm]
+            
+        df_ed_diz = st.data_editor(df_ed_base,
+            use_container_width=True, hide_index=True, 
+            column_config={
+                "Mês": None, 
+                "Líder": st.column_config.Column(disabled=True), 
+                "Categoria": st.column_config.Column(disabled=True),
+                "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f"),
+                "Pago": st.column_config.Column(disabled=True)
+            })
+            
         if st.button("💾 Salvar Dízimos"):
             for _, row in df_ed_diz.iterrows():
                 row["Pago"] = "Sim" if row["Valor"] > 0 else "Não"
                 idx = st.session_state.df[(st.session_state.df["Mês"] == row["Mês"]) & (st.session_state.df["Líder"] == row["Líder"])].index
                 st.session_state.df.loc[idx, ["Valor", "Pago"]] = [row["Valor"], row["Pago"]]
             salvar_dados(); st.success("Salvo!"); st.rerun()
-
