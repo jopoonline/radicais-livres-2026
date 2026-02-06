@@ -82,7 +82,7 @@ def obter_sabados_do_mes(mes_nome, ano=2026):
 with st.sidebar:
     st.title("🔐 Acesso")
     senha = st.text_input("Senha Administrativa:", type="password")
-    is_admin = (senha == "1234")
+    is_admin = (senha == "Videira@1020")
     if st.button("🔄 Sincronizar"):
         st.session_state.df, st.session_state.df_freq = carregar_dados()
         st.rerun()
@@ -285,3 +285,4 @@ if is_admin:
                 idx = st.session_state.df[(st.session_state.df["Mês"] == row["Mês"]) & (st.session_state.df["Líder"] == row["Líder"])].index
                 st.session_state.df.loc[idx, ["Valor", "Pago"]] = [row["Valor"], row["Pago"]]
             salvar_dados(); st.success("Salvo!"); st.rerun()
+
