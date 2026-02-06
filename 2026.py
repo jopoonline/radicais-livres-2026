@@ -12,7 +12,7 @@ st.set_page_config(page_title="Radicais Livres 2026", layout="wide", page_icon="
 conn = st.connection("gsheets", type=GSheetsConnection)
 URL_PLANILHA = "https://docs.google.com/spreadsheets/d/1ptEbNIYh9_vVHJhnYLVoicAZ9REHTuIsBO4c1h7PsIs/edit#gid=0"
 
-# --- ESTILO CSS (EXATAMENTE O SEU) ---
+# --- ESTILO CSS ---
 st.markdown("""
 <style>
     .stApp { background-color: #0F172A; color: #F8FAFC; }
@@ -52,13 +52,12 @@ CORES_AZYK = {"ME": "#00D4FF", "FA": "#0072FF", "VI": "#00E6CC"}
 meses_map = {m: list(calendar.month_name)[i+1] for i, m in enumerate(MESES_ORDEM)}
 mes_atual_numero = datetime.now().month
 
-# --- FUNÇÕES DE DADOS (AGORA COM GSHEETS) ---
+# --- FUNÇÕES DE DADOS ---
 def carregar_dados():
     try:
         df_d = conn.read(spreadsheet=URL_PLANILHA, worksheet="Dizimos", ttl=0)
         df_f = conn.read(spreadsheet=URL_PLANILHA, worksheet="Frequencia", ttl=0)
         
-        # Se a planilha estiver vazia, cria a estrutura inicial
         if df_f.empty or "Discipulador" not in df_f.columns:
             data_f = []
             for mes in MESES_ORDEM:
@@ -82,7 +81,6 @@ def carregar_dados():
     except:
         return pd.DataFrame(), pd.DataFrame()
 
-# Inicialização do State
 if 'df' not in st.session_state or 'df_freq' not in st.session_state:
     st.session_state.df, st.session_state.df_freq = carregar_dados()
 
@@ -110,7 +108,6 @@ with st.sidebar:
 
 st.markdown('<p class="main-title">⛪ RADICAIS LIVRES 2026</p>', unsafe_allow_html=True)
 
-# CORREÇÃO VALUEERROR: Definindo abas em blocos
 if is_admin:
     tabs = st.tabs(["📊 Frequência", "💰 Finanças", "⚙️ Admin"])
     tab1, tab2, tab3 = tabs
@@ -153,7 +150,6 @@ with tab1:
     st.write("### 🎸 Resumo de Culto")
     render_metrics(df_f_view[df_f_view["Tipo"] == "Culto de Jovens"], "CULTO")
 
-    # --- GRÁFICOS DE FREQUÊNCIA ---
     st.divider()
     col_g1, col_g2 = st.columns(2)
     with col_g1:
@@ -179,7 +175,6 @@ with tab1:
             fig_sem.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="white")
             st.plotly_chart(fig_sem, use_container_width=True)
 
-    # --- EDITOR DE LANÇAMENTO ---
     st.markdown('<div class="edit-section">', unsafe_allow_html=True)
     st.markdown("### 📝 Lançamento de Frequência")
     modo_edicao = st.toggle("Habilitar Edição", value=False)
@@ -210,21 +205,54 @@ with tab2:
     df_fin_filtrado = st.session_state.df.copy()
     if cat_fin_view != "Todos":
         df_fin_filtrado = df_fin_filtrado[df_fin_filtrado["Categoria"] == cat_fin_view]
+    
     df_pago = df_fin_filtrado[df_fin_filtrado["Pago"] == "Sim"]
+    
     st.markdown(f'''<div style="background:linear-gradient(90deg, #1E293B, #0072FF); padding:25px; border-radius:15px; border-left:5px solid #00D4FF; margin-bottom:20px;">
         <p class="metric-label">Total Acumulado ({cat_fin_view})</p>
         <p style="font-size:36px; font-weight:900; margin:0;">{formatar_brl(df_pago["Valor"].sum())}</p>
     </div>''', unsafe_allow_html=True)
-    c1, c2 = st.columns([2, 1])
+    
+    c1, c2 = st.columns([2, 1.2]) # Ajuste leve na proporção
+    
     with c1:
+        st.write("### 📈 Evolução de Arrecadação")
         df_evol = df_pago.groupby("Mês", sort=False)["Valor"].sum().reindex(MESES_ORDEM).fillna(0).reset_index()
         fig_l = px.line(df_evol, x="Mês", y="Valor", text="Valor", markers=True)
         fig_l.update_traces(texttemplate='R$ %{y:,.2f}', textposition="top center", line_color="#00D4FF")
-        fig_l.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="white")
+        fig_l.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="white", margin=dict(t=20, b=20))
         st.plotly_chart(fig_l, use_container_width=True)
+    
     with c2:
         m_v = st.selectbox("Status no Mês:", MESES_ORDEM, index=mes_atual_numero-1)
-        st.plotly_chart(px.pie(df_fin_filtrado[df_fin_filtrado["Mês"] == m_v], names='Pago', hole=0.5, color_discrete_map={'Sim': '#00D4FF', 'Não': '#EF4444'}), use_container_width=True)
+        st.write(f"### 🍩 Status: {m_v}")
+        
+        # Filtro para o gráfico de pizza
+        df_pizza = df_fin_filtrado[df_fin_filtrado["Mês"] == m_v]
+        
+        # Criação do Gráfico de Pizza (Donut) melhorado
+        fig_p = px.pie(
+            df_pizza, 
+            names='Pago', 
+            hole=0.6, 
+            color='Pago',
+            color_discrete_map={'Sim': '#00D4FF', 'Não': '#EF4444'}
+        )
+        
+        # Melhorando o layout para tirar o fundo preto e alinhar
+        fig_p.update_layout(
+            paper_bgcolor="rgba(0,0,0,0)", 
+            plot_bgcolor="rgba(0,0,0,0)", 
+            font_color="white",
+            showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5),
+            margin=dict(t=0, b=0, l=0, r=0)
+        )
+        
+        # Ajuste de informações no hover e no gráfico
+        fig_p.update_traces(textposition='inside', textinfo='percent+label')
+        
+        st.plotly_chart(fig_p, use_container_width=True)
 
 # --- ABA 3: ADMIN ---
 if is_admin:
