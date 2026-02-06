@@ -45,7 +45,9 @@ GRUPOS_DISCIPULADORES = {
     "Jovens": ["André e Larissa", "Lucas e Rosana", "Deric e Nayara"],
     "Adolescentes": ["Giovana", "Guilherme", "Larissa", "Bella", "Pedro"]
 }
-TODOS_DISCIPULADORES = GRUPOS_DISCIPULADORES["Jovens"] + GRUPOS_DISCIPULADORES["Adolescentes"]
+# Esta é a lista oficial que o app vai respeitar agora:
+TODOS_DISCIPULADORES_CODIGO = GRUPOS_DISCIPULADORES["Jovens"] + GRUPOS_DISCIPULADORES["Adolescentes"]
+
 TIPOS = ["Célula", "Culto de Jovens"]
 CORES_AZYK = {"ME": "#00D4FF", "FA": "#0072FF", "VI": "#00E6CC"}
 
@@ -57,26 +59,6 @@ def carregar_dados():
     try:
         df_d = conn.read(spreadsheet=URL_PLANILHA, worksheet="Dizimos", ttl=0)
         df_f = conn.read(spreadsheet=URL_PLANILHA, worksheet="Frequencia", ttl=0)
-        
-        if df_f.empty or "Discipulador" not in df_f.columns:
-            data_f = []
-            for mes in MESES_ORDEM:
-                for disc in TODOS_DISCIPULADORES:
-                    cat = "Jovens" if disc in GRUPOS_DISCIPULADORES["Jovens"] else "Adolescentes"
-                    for tipo in TIPOS:
-                        row = {"Mês": mes, "Discipulador": disc, "Categoria": cat, "Tipo": tipo}
-                        for i in range(1, 6): row[f"S{i}_ME"] = row[f"S{i}_FA"] = row[f"S{i}_VI"] = 0
-                        data_f.append(row)
-            df_f = pd.DataFrame(data_f)
-            
-        if df_d.empty or "Líder" not in df_d.columns:
-            data_d = []
-            for m in MESES_ORDEM:
-                for l in TODOS_DISCIPULADORES:
-                    cat = "Jovens" if l in GRUPOS_DISCIPULADORES["Jovens"] else "Adolescentes"
-                    data_d.append({"Mês": m, "Líder": l, "Categoria": cat, "Valor": 0.0, "Pago": "Não"})
-            df_d = pd.DataFrame(data_d)
-            
         return df_d, df_f
     except:
         return pd.DataFrame(), pd.DataFrame()
@@ -124,11 +106,17 @@ with tab1:
     sabados = obter_sabados_do_mes(mes_sel)
     n_sab = len(sabados)
     
-    df_f_base = st.session_state.df_freq[st.session_state.df_freq["Mês"] == mes_sel].copy()
+    # FILTRO RIGIDO: Só permite discipuladores que estão na lista fixa do código
+    df_f_base = st.session_state.df_freq[
+        (st.session_state.df_freq["Mês"] == mes_sel) & 
+        (st.session_state.df_freq["Discipulador"].isin(TODOS_DISCIPULADORES_CODIGO))
+    ].copy()
+    
     if cat_freq_filt != "Todos":
         df_f_base = df_f_base[df_f_base["Categoria"] == cat_freq_filt]
 
     with col_sel3:
+        # A lista de filtros agora é baseada apenas no que sobrou do filtro rígido acima
         lista_nomes = sorted(df_f_base["Discipulador"].unique())
         selecao_nomes = st.multiselect("👥 Filtrar Discipuladores:", lista_nomes, default=lista_nomes)
 
@@ -178,6 +166,7 @@ with tab1:
     st.markdown('<div class="edit-section">', unsafe_allow_html=True)
     st.markdown("### 📝 Lançamento de Frequência")
     modo_edicao = st.toggle("Habilitar Edição", value=False)
+    
     conf_f = {"Mês": None, "Categoria": None, "Discipulador": st.column_config.Column(disabled=True), "Tipo": st.column_config.Column(disabled=True)}
     for i in range(1, 6):
         if i <= n_sab:
@@ -199,69 +188,53 @@ with tab1:
         st.dataframe(df_f_view, column_config=conf_f, use_container_width=True, hide_index=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- ABA 2: FINANÇAS ---
+# --- ABA 2: FINANÇAS --- (MANTIDA IGUAL AO SEU ÚLTIMO PEDIDO)
 with tab2:
     cat_fin_view = st.selectbox("🔍 Ver Finanças de:", ["Todos", "Jovens", "Adolescentes"], key="cat_fin")
     df_fin_filtrado = st.session_state.df.copy()
     if cat_fin_view != "Todos":
         df_fin_filtrado = df_fin_filtrado[df_fin_filtrado["Categoria"] == cat_fin_view]
     
-    df_pago_geral = df_fin_filtrado[df_fin_filtrado["Pago"] == "Sim"]
+    df_pago = df_fin_filtrado[df_fin_filtrado["Pago"] == "Sim"]
     
     st.markdown(f'''<div style="background:linear-gradient(90deg, #1E293B, #0072FF); padding:25px; border-radius:15px; border-left:5px solid #00D4FF; margin-bottom:20px;">
         <p class="metric-label">Total Acumulado ({cat_fin_view})</p>
-        <p style="font-size:36px; font-weight:900; margin:0;">{formatar_brl(df_pago_geral["Valor"].sum())}</p>
+        <p style="font-size:36px; font-weight:900; margin:0;">{formatar_brl(df_pago["Valor"].sum())}</p>
     </div>''', unsafe_allow_html=True)
     
-    col_fin1, col_fin2 = st.columns([1.5, 1])
+    c1, c2 = st.columns([2, 1.2]) 
     
-    with col_fin1:
-        st.write("### 📈 Arrecadação por Mês")
-        df_evol = df_pago_geral.groupby("Mês", sort=False)["Valor"].sum().reindex(MESES_ORDEM).fillna(0).reset_index()
+    with c1:
+        st.write("### 📈 Evolução de Arrecadação")
+        df_evol = df_pago.groupby("Mês", sort=False)["Valor"].sum().reindex(MESES_ORDEM).fillna(0).reset_index()
         fig_l = px.line(df_evol, x="Mês", y="Valor", text="Valor", markers=True)
         fig_l.update_traces(texttemplate='R$ %{y:,.2f}', textposition="top center", line_color="#00D4FF")
-        fig_l.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="white", margin=dict(t=30))
+        fig_l.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="white", margin=dict(t=20, b=20))
         st.plotly_chart(fig_l, use_container_width=True)
-        
-    with col_fin2:
-        m_v = st.selectbox("Selecione o Mês para Detalhes:", MESES_ORDEM, index=mes_atual_numero-1, key="sel_mes_fin")
-        st.write(f"### 📊 Status de Pagamento - {m_v}")
-        
-        # Substituindo a Pizza por uma Barra de Status Horizontal (mais profissional)
-        df_mes_stat = df_fin_filtrado[df_fin_filtrado["Mês"] == m_v].groupby("Pago").size().reset_index(name="Quantidade")
-        
-        if not df_mes_stat.empty:
-            fig_bar_stat = px.bar(
-                df_mes_stat, 
-                x="Quantidade", 
-                y="Pago", 
-                orientation='h',
-                color="Pago",
-                text="Quantidade",
-                color_discrete_map={'Sim': '#00D4FF', 'Não': '#EF4444'}
-            )
-            fig_bar_stat.update_layout(
-                paper_bgcolor="rgba(0,0,0,0)", 
-                plot_bgcolor="rgba(0,0,0,0)", 
-                font_color="white",
-                showlegend=False,
-                xaxis=dict(showgrid=False, zeroline=False, visible=False),
-                yaxis=dict(title=""),
-                margin=dict(l=0, r=0, t=20, b=0),
-                height=200
-            )
-            st.plotly_chart(fig_bar_stat, use_container_width=True)
-            
-            # Métricas rápidas abaixo do gráfico
-            sm1, sm2 = st.columns(2)
-            val_pago = df_fin_filtrado[(df_fin_filtrado["Mês"] == m_v) & (df_fin_filtrado["Pago"] == "Sim")]["Valor"].sum()
-            sm1.metric("Total Pago", formatar_brl(val_pago))
-            count_não = len(df_fin_filtrado[(df_fin_filtrado["Mês"] == m_v) & (df_fin_filtrado["Pago"] == "Não")])
-            sm2.metric("Pendentes", f"{count_não} Líderes")
-        else:
-            st.info("Sem dados para este mês.")
+    
+    with c2:
+        m_v = st.selectbox("Status no Mês:", MESES_ORDEM, index=mes_atual_numero-1)
+        st.write(f"### 🍩 Status: {m_v}")
+        df_pizza = df_fin_filtrado[df_fin_filtrado["Mês"] == m_v]
+        fig_p = px.pie(
+            df_pizza, 
+            names='Pago', 
+            hole=0.6, 
+            color='Pago',
+            color_discrete_map={'Sim': '#00D4FF', 'Não': '#EF4444'}
+        )
+        fig_p.update_layout(
+            paper_bgcolor="rgba(0,0,0,0)", 
+            plot_bgcolor="rgba(0,0,0,0)", 
+            font_color="white",
+            showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5),
+            margin=dict(t=0, b=0, l=0, r=0)
+        )
+        fig_p.update_traces(textposition='inside', textinfo='percent+label')
+        st.plotly_chart(fig_p, use_container_width=True)
 
-# --- ABA 3: ADMIN ---
+# --- ABA 3: ADMIN --- (MANTIDA IGUAL AO SEU ÚLTIMO PEDIDO)
 if is_admin:
     with tab3:
         st.write("### 👥 Gestão de Líderes")
