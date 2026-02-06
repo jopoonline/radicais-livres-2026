@@ -211,10 +211,50 @@ if is_admin:
         col_adm1, col_adm2 = st.columns(2)
         with col_adm1:
             n_n = st.text_input("Nome Novo Líder:")
-            c_n = st.selectbox("Categoria:", ["Jovens", "Adolescentes"])
-            if st.button("➕ Adicionar"):
+            c_n = st.selectbox("Categoria:", ["Jovens", "Adolescentes"], key="add_cat_adm")
+            if st.button("➕ Adicionar Líder"):
                 if n_n:
                     novos_d = pd.DataFrame([{"Mês": m, "Líder": n_n, "Categoria": c_n, "Valor": 0.0, "Pago": "Não"} for m in MESES_ORDEM])
                     st.session_state.df = pd.concat([st.session_state.df, novos_d], ignore_index=True)
+                    
                     novas_f = pd.DataFrame([{"Mês": m, "Discipulador": n_n, "Categoria": c_n, "Tipo": t, **{f"S{i}_{ind}": 0 for i in range(1, 6) for ind in ["ME", "FA", "VI"]}} for m in MESES_ORDEM for t in TIPOS])
-                    st.session_state.
+                    st.session_state.df_freq = pd.concat([st.session_state.df_freq, novas_f], ignore_index=True)
+                    
+                    salvar_nuvem()
+                    st.success(f"{n_n} Adicionado com Sucesso!"); st.rerun()
+        
+        with col_adm2:
+            l_ex = st.selectbox("Remover Líder do Sistema:", sorted(st.session_state.df["Líder"].unique()))
+            if st.button("🗑️ Remover Permanentemente"):
+                st.session_state.df = st.session_state.df[st.session_state.df["Líder"] != l_ex]
+                st.session_state.df_freq = st.session_state.df_freq[st.session_state.df_freq["Discipulador"] != l_ex]
+                salvar_nuvem()
+                st.warning(f"Líder {l_ex} removido!"); st.rerun()
+
+        st.divider()
+        st.markdown("### 💰 Lançamento de Dízimos")
+        c_f1, c_f2, c_f3 = st.columns([1, 1, 2])
+        with c_f1: m_l = st.selectbox("Mês de Lançamento:", MESES_ORDEM, key="adm_m", index=mes_atual_numero-1)
+        with c_f2: f_cat = st.selectbox("Filtrar Grupo:", ["Todos", "Jovens", "Adolescentes"])
+        with c_f3: b_n = st.text_input("🔍 Buscar Líder pelo Nome:")
+        
+        df_ad = st.session_state.df[st.session_state.df["Mês"] == m_l].copy()
+        if f_cat != "Todos": 
+            df_ad = df_ad[df_ad["Categoria"] == f_cat]
+        if b_n: 
+            df_ad = df_ad[df_ad["Líder"].str.contains(b_n, case=False)]
+        
+        df_ed_d = st.data_editor(df_ad, use_container_width=True, hide_index=True,
+                                 column_config={"Mês": None, "Líder": st.column_config.Column(disabled=True), 
+                                               "Categoria": st.column_config.Column(disabled=True),
+                                               "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f")})
+        
+        if st.button("💾 Salvar Lançamentos Financeiros"):
+            for _, row in df_ed_d.iterrows():
+                # Se o valor for maior que 0, marca como Pago automaticamente
+                status_pago = "Sim" if row["Valor"] > 0 else "Não"
+                idx = st.session_state.df[(st.session_state.df["Mês"] == m_l) & (st.session_state.df["Líder"] == row["Líder"])].index
+                st.session_state.df.loc[idx, ["Valor", "Pago"]] = [row["Valor"], status_pago]
+            
+            salvar_nuvem()
+            st.success("Dados Financeiros Sincronizados com o Google Sheets!"); st.rerun()
