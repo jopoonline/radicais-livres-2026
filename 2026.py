@@ -45,7 +45,6 @@ GRUPOS_DISCIPULADORES = {
     "Jovens": ["André e Larissa", "Lucas e Rosana", "Deric e Nayara"],
     "Adolescentes": ["Giovana", "Guilherme", "Larissa", "Bella", "Pedro"]
 }
-# Esta é a lista oficial que o app vai respeitar agora:
 TODOS_DISCIPULADORES_CODIGO = GRUPOS_DISCIPULADORES["Jovens"] + GRUPOS_DISCIPULADORES["Adolescentes"]
 
 TIPOS = ["Célula", "Culto de Jovens"]
@@ -83,7 +82,7 @@ def obter_sabados_do_mes(mes_nome, ano=2026):
 with st.sidebar:
     st.title("🔐 Acesso")
     senha = st.text_input("Senha Administrativa:", type="password")
-    is_admin = (senha == "1234")
+    is_admin = (senha == "Videira@1020")
     if st.button("🔄 Sincronizar"):
         st.session_state.df, st.session_state.df_freq = carregar_dados()
         st.rerun()
@@ -106,7 +105,6 @@ with tab1:
     sabados = obter_sabados_do_mes(mes_sel)
     n_sab = len(sabados)
     
-    # FILTRO RIGIDO: Só permite discipuladores que estão na lista fixa do código
     df_f_base = st.session_state.df_freq[
         (st.session_state.df_freq["Mês"] == mes_sel) & 
         (st.session_state.df_freq["Discipulador"].isin(TODOS_DISCIPULADORES_CODIGO))
@@ -116,7 +114,6 @@ with tab1:
         df_f_base = df_f_base[df_f_base["Categoria"] == cat_freq_filt]
 
     with col_sel3:
-        # A lista de filtros agora é baseada apenas no que sobrou do filtro rígido acima
         lista_nomes = sorted(df_f_base["Discipulador"].unique())
         selecao_nomes = st.multiselect("👥 Filtrar Discipuladores:", lista_nomes, default=lista_nomes)
 
@@ -188,7 +185,7 @@ with tab1:
         st.dataframe(df_f_view, column_config=conf_f, use_container_width=True, hide_index=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- ABA 2: FINANÇAS --- (MANTIDA IGUAL AO SEU ÚLTIMO PEDIDO)
+# --- ABA 2: FINANÇAS ---
 with tab2:
     cat_fin_view = st.selectbox("🔍 Ver Finanças de:", ["Todos", "Jovens", "Adolescentes"], key="cat_fin")
     df_fin_filtrado = st.session_state.df.copy()
@@ -213,7 +210,7 @@ with tab2:
         st.plotly_chart(fig_l, use_container_width=True)
     
     with c2:
-        m_v = st.selectbox("Status no Mês:", MESES_ORDEM, index=mes_atual_numero-1)
+        m_v = st.selectbox("Status no Mês:", MESES_ORDEM, index=mes_atual_numero-1, key="mes_fin_stat")
         st.write(f"### 🍩 Status: {m_v}")
         df_pizza = df_fin_filtrado[df_fin_filtrado["Mês"] == m_v]
         fig_p = px.pie(
@@ -234,7 +231,7 @@ with tab2:
         fig_p.update_traces(textposition='inside', textinfo='percent+label')
         st.plotly_chart(fig_p, use_container_width=True)
 
-# --- ABA 3: ADMIN --- (MANTIDA IGUAL AO SEU ÚLTIMO PEDIDO)
+# --- ABA 3: ADMIN ---
 if is_admin:
     with tab3:
         st.write("### 👥 Gestão de Líderes")
@@ -259,8 +256,29 @@ if is_admin:
 
         st.divider()
         st.markdown("### 💰 Lançamento de Dízimos")
-        df_ed_diz = st.data_editor(st.session_state.df[st.session_state.df["Mês"] == st.selectbox("Mês de Lançamento:", MESES_ORDEM, index=mes_atual_numero-1, key="adm_m")],
-            use_container_width=True, hide_index=True, column_config={"Mês": None, "Líder": st.column_config.Column(disabled=True), "Categoria": st.column_config.Column(disabled=True)})
+        
+        # --- MELHORIA AQUI: FILTROS DE CATEGORIA PARA DÍZIMOS ---
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            mes_adm = st.selectbox("Mês de Lançamento:", MESES_ORDEM, index=mes_atual_numero-1, key="adm_m")
+        with col_f2:
+            cat_adm = st.radio("Filtrar por Categoria:", ["Jovens", "Adolescentes", "Todos"], horizontal=True, key="cat_adm_fin")
+        
+        # Filtragem do dataframe de edição
+        df_ed_base = st.session_state.df[st.session_state.df["Mês"] == mes_adm].copy()
+        if cat_adm != "Todos":
+            df_ed_base = df_ed_base[df_ed_base["Categoria"] == cat_adm]
+            
+        df_ed_diz = st.data_editor(df_ed_base,
+            use_container_width=True, hide_index=True, 
+            column_config={
+                "Mês": None, 
+                "Líder": st.column_config.Column(disabled=True), 
+                "Categoria": st.column_config.Column(disabled=True),
+                "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f"),
+                "Pago": st.column_config.Column(disabled=True)
+            })
+            
         if st.button("💾 Salvar Dízimos"):
             for _, row in df_ed_diz.iterrows():
                 row["Pago"] = "Sim" if row["Valor"] > 0 else "Não"
