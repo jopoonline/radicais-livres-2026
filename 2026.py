@@ -206,53 +206,60 @@ with tab2:
     if cat_fin_view != "Todos":
         df_fin_filtrado = df_fin_filtrado[df_fin_filtrado["Categoria"] == cat_fin_view]
     
-    df_pago = df_fin_filtrado[df_fin_filtrado["Pago"] == "Sim"]
+    df_pago_geral = df_fin_filtrado[df_fin_filtrado["Pago"] == "Sim"]
     
     st.markdown(f'''<div style="background:linear-gradient(90deg, #1E293B, #0072FF); padding:25px; border-radius:15px; border-left:5px solid #00D4FF; margin-bottom:20px;">
         <p class="metric-label">Total Acumulado ({cat_fin_view})</p>
-        <p style="font-size:36px; font-weight:900; margin:0;">{formatar_brl(df_pago["Valor"].sum())}</p>
+        <p style="font-size:36px; font-weight:900; margin:0;">{formatar_brl(df_pago_geral["Valor"].sum())}</p>
     </div>''', unsafe_allow_html=True)
     
-    c1, c2 = st.columns([2, 1.2]) # Ajuste leve na proporção
+    col_fin1, col_fin2 = st.columns([1.5, 1])
     
-    with c1:
-        st.write("### 📈 Evolução de Arrecadação")
-        df_evol = df_pago.groupby("Mês", sort=False)["Valor"].sum().reindex(MESES_ORDEM).fillna(0).reset_index()
+    with col_fin1:
+        st.write("### 📈 Arrecadação por Mês")
+        df_evol = df_pago_geral.groupby("Mês", sort=False)["Valor"].sum().reindex(MESES_ORDEM).fillna(0).reset_index()
         fig_l = px.line(df_evol, x="Mês", y="Valor", text="Valor", markers=True)
         fig_l.update_traces(texttemplate='R$ %{y:,.2f}', textposition="top center", line_color="#00D4FF")
-        fig_l.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="white", margin=dict(t=20, b=20))
+        fig_l.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="white", margin=dict(t=30))
         st.plotly_chart(fig_l, use_container_width=True)
-    
-    with c2:
-        m_v = st.selectbox("Status no Mês:", MESES_ORDEM, index=mes_atual_numero-1)
-        st.write(f"### 🍩 Status: {m_v}")
         
-        # Filtro para o gráfico de pizza
-        df_pizza = df_fin_filtrado[df_fin_filtrado["Mês"] == m_v]
+    with col_fin2:
+        m_v = st.selectbox("Selecione o Mês para Detalhes:", MESES_ORDEM, index=mes_atual_numero-1, key="sel_mes_fin")
+        st.write(f"### 📊 Status de Pagamento - {m_v}")
         
-        # Criação do Gráfico de Pizza (Donut) melhorado
-        fig_p = px.pie(
-            df_pizza, 
-            names='Pago', 
-            hole=0.6, 
-            color='Pago',
-            color_discrete_map={'Sim': '#00D4FF', 'Não': '#EF4444'}
-        )
+        # Substituindo a Pizza por uma Barra de Status Horizontal (mais profissional)
+        df_mes_stat = df_fin_filtrado[df_fin_filtrado["Mês"] == m_v].groupby("Pago").size().reset_index(name="Quantidade")
         
-        # Melhorando o layout para tirar o fundo preto e alinhar
-        fig_p.update_layout(
-            paper_bgcolor="rgba(0,0,0,0)", 
-            plot_bgcolor="rgba(0,0,0,0)", 
-            font_color="white",
-            showlegend=True,
-            legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5),
-            margin=dict(t=0, b=0, l=0, r=0)
-        )
-        
-        # Ajuste de informações no hover e no gráfico
-        fig_p.update_traces(textposition='inside', textinfo='percent+label')
-        
-        st.plotly_chart(fig_p, use_container_width=True)
+        if not df_mes_stat.empty:
+            fig_bar_stat = px.bar(
+                df_mes_stat, 
+                x="Quantidade", 
+                y="Pago", 
+                orientation='h',
+                color="Pago",
+                text="Quantidade",
+                color_discrete_map={'Sim': '#00D4FF', 'Não': '#EF4444'}
+            )
+            fig_bar_stat.update_layout(
+                paper_bgcolor="rgba(0,0,0,0)", 
+                plot_bgcolor="rgba(0,0,0,0)", 
+                font_color="white",
+                showlegend=False,
+                xaxis=dict(showgrid=False, zeroline=False, visible=False),
+                yaxis=dict(title=""),
+                margin=dict(l=0, r=0, t=20, b=0),
+                height=200
+            )
+            st.plotly_chart(fig_bar_stat, use_container_width=True)
+            
+            # Métricas rápidas abaixo do gráfico
+            sm1, sm2 = st.columns(2)
+            val_pago = df_fin_filtrado[(df_fin_filtrado["Mês"] == m_v) & (df_fin_filtrado["Pago"] == "Sim")]["Valor"].sum()
+            sm1.metric("Total Pago", formatar_brl(val_pago))
+            count_não = len(df_fin_filtrado[(df_fin_filtrado["Mês"] == m_v) & (df_fin_filtrado["Pago"] == "Não")])
+            sm2.metric("Pendentes", f"{count_não} Líderes")
+        else:
+            st.info("Sem dados para este mês.")
 
 # --- ABA 3: ADMIN ---
 if is_admin:
