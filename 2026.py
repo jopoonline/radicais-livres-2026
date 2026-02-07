@@ -43,7 +43,7 @@ st.markdown("""
 MESES_ORDEM = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
 GRUPOS_DISCIPULADORES = {
     "Jovens": ["André e Larissa", "Lucas e Rosana", "Deric e Nayara"],
-    "Adolescentes": ["Giovana", "Guilherme", "Larissa", "Bella", "Pedro"]
+    "Adolescentes": ["Giovana", "Gui&La", "Bella", "Pedro"]
 }
 TODOS_DISCIPULADORES_CODIGO = GRUPOS_DISCIPULADORES["Jovens"] + GRUPOS_DISCIPULADORES["Adolescentes"]
 
@@ -285,4 +285,5 @@ if is_admin:
                 idx = st.session_state.df[(st.session_state.df["Mês"] == row["Mês"]) & (st.session_state.df["Líder"] == row["Líder"])].index
                 st.session_state.df.loc[idx, ["Valor", "Pago"]] = [row["Valor"], row["Pago"]]
             salvar_dados(); st.success("Salvo!"); st.rerun()
+
 
