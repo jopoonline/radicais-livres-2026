@@ -126,7 +126,7 @@ with tab1:
         me = int(df_filter[cols_me].sum().sum()); fa = int(df_filter[cols_fa].sum().sum()); vi = int(df_filter[cols_vi].sum().sum())
         m1, m2, m3, m4 = st.columns(4)
         with m1: st.markdown(f'<div class="metric-card"><span class="type-label">{titulo_tipo}</span><p class="metric-label">Membros</p><p class="metric-value">{me}</p></div>', unsafe_allow_html=True)
-        with m2: st.markdown(f'<div class="metric-card"><span class="type-label">{titulo_tipo}</span><p class="metric-label">Freq. Ativa</p><p class="metric-value">{fa}</p></div>', unsafe_allow_html=True)
+        with m2: st.markdown(f'<div class="metric-card"><span class="type-label">{titulo_tipo}</span><p class="metric-label">FA</p><p class="metric-value">{fa}</p></div>', unsafe_allow_html=True)
         with m3: st.markdown(f'<div class="metric-card"><span class="type-label">{titulo_tipo}</span><p class="metric-label">Visitantes</p><p class="metric-value">{vi}</p></div>', unsafe_allow_html=True)
         with m4: st.markdown(f'<div class="metric-card" style="border-color:#00D4FF"><span class="type-label">{titulo_tipo}</span><p class="metric-label">Total</p><p class="metric-value">{me+fa+vi}</p></div>', unsafe_allow_html=True)
 
@@ -285,5 +285,6 @@ if is_admin:
                 idx = st.session_state.df[(st.session_state.df["Mês"] == row["Mês"]) & (st.session_state.df["Líder"] == row["Líder"])].index
                 st.session_state.df.loc[idx, ["Valor", "Pago"]] = [row["Valor"], row["Pago"]]
             salvar_dados(); st.success("Salvo!"); st.rerun()
+
 
 
