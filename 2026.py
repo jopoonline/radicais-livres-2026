@@ -15,49 +15,45 @@ URL_PLANILHA = "https://docs.google.com/spreadsheets/d/1ptEbNIYh9_vVHJhnYLVoicAZ
 # --- ESTILO CSS ---
 st.markdown("""
 <style>
-.stApp { background-color: #0F172A; color: #F8FAFC; }
-.metric-card {
-background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
-padding: 15px; border-radius: 12px; border: 1px solid #334155;
-text-align: center; margin-bottom: 10px;
-}
-.metric-value { color: #00D4FF; font-size: 24px; font-weight: 800; margin: 0; }
-.metric-label { color: #94A3B8; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
-.type-label {
-background-color: #00D4FF; color: #0F172A; padding: 2px 8px;
-border-radius: 5px; font-size: 12px; font-weight: bold; margin-bottom: 8px; display: inline-block;
-}
-.main-title {
-background: linear-gradient(90deg, #00D4FF 0%, #0072FF 100%);
--webkit-background-clip: text; -webkit-text-fill-color: transparent;
-font-weight: 900; font-size: 38px; text-align: center; margin-bottom: 20px;
-}
-.edit-section {
-background-color: #1E293B; padding: 20px; border-radius: 15px;
-border-top: 3px solid #00D4FF; margin-top: 30px;
-}
+    .stApp { background-color: #0F172A; color: #F8FAFC; }
+    .metric-card {
+        background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+        padding: 15px; border-radius: 12px; border: 1px solid #334155;
+        text-align: center; margin-bottom: 10px;
+    }
+    .metric-value { color: #00D4FF; font-size: 24px; font-weight: 800; margin: 0; }
+    .metric-label { color: #94A3B8; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+    .type-label { 
+        background-color: #00D4FF; color: #0F172A; padding: 2px 8px; 
+        border-radius: 5px; font-size: 12px; font-weight: bold; margin-bottom: 8px; display: inline-block;
+    }
+    .main-title {
+        background: linear-gradient(90deg, #00D4FF 0%, #0072FF 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        font-weight: 900; font-size: 38px; text-align: center; margin-bottom: 20px;
+    }
+    .edit-section {
+        background-color: #1E293B; padding: 20px; border-radius: 15px;
+        border-top: 3px solid #00D4FF; margin-top: 30px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # --- CONFIGURAÇÕES ---
-MESES_ORDEM = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"]
-
+MESES_ORDEM = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
 GRUPOS_DISCIPULADORES = {
-"Jovens": ["André e Larissa","Lucas e Rosana","Deric e Nayara"],
-"Adolescentes": ["Giovana","Gui&La","Bella","Pedro"]
+    "Jovens": ["André e Larissa", "Lucas e Rosana", "Deric e Nayara"],
+    "Adolescentes": ["Giovana", "Gui&La", "Bella", "Pedro"]
 }
-
 TODOS_DISCIPULADORES_CODIGO = GRUPOS_DISCIPULADORES["Jovens"] + GRUPOS_DISCIPULADORES["Adolescentes"]
 
-TIPOS = ["Célula","Culto de Jovens"]
+TIPOS = ["Célula", "Culto de Jovens"]
+CORES_AZYK = {"ME": "#00D4FF", "FA": "#0072FF", "VI": "#00E6CC"}
 
-CORES_AZYK = {"ME":"#00D4FF","FA":"#0072FF","VI":"#00E6CC"}
-
-meses_map = {m:list(calendar.month_name)[i+1] for i,m in enumerate(MESES_ORDEM)}
-
+meses_map = {m: list(calendar.month_name)[i+1] for i, m in enumerate(MESES_ORDEM)}
 mes_atual_numero = datetime.now().month
 
-# --- FUNÇÕES ---
+# --- FUNÇÕES DE DADOS ---
 def carregar_dados():
     try:
         df_d = conn.read(spreadsheet=URL_PLANILHA, worksheet="Dizimos", ttl=0)
@@ -74,7 +70,7 @@ def salvar_dados():
     conn.update(spreadsheet=URL_PLANILHA, worksheet="Frequencia", data=st.session_state.df_freq)
     st.cache_data.clear()
 
-def formatar_brl(valor):
+def formatar_brl(valor): 
     return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 def obter_sabados_do_mes(mes_nome, ano=2026):
@@ -87,7 +83,6 @@ with st.sidebar:
     st.title("🔐 Acesso")
     senha = st.text_input("Senha Administrativa:", type="password")
     is_admin = (senha == "Videira@1020")
-
     if st.button("🔄 Sincronizar"):
         st.session_state.df, st.session_state.df_freq = carregar_dados()
         st.rerun()
@@ -95,32 +90,26 @@ with st.sidebar:
 st.markdown('<p class="main-title">⛪ RADICAIS LIVRES 2026</p>', unsafe_allow_html=True)
 
 if is_admin:
-    tabs = st.tabs(["📊 Frequência","💰 Finanças","⚙️ Admin"])
+    tabs = st.tabs(["📊 Frequência", "💰 Finanças", "⚙️ Admin"])
     tab1, tab2, tab3 = tabs
 else:
-    tabs = st.tabs(["📊 Frequência","💰 Finanças"])
+    tabs = st.tabs(["📊 Frequência", "💰 Finanças"])
     tab1, tab2 = tabs
 
-# ================================
-# ABA 1 FREQUENCIA (NÃO MODIFICADA)
-# ================================
+# --- ABA 1: FREQUÊNCIA ---
 with tab1:
-
-    col_sel1, col_sel2, col_sel3 = st.columns([1,1,2])
-
-    with col_sel1:
-        mes_sel = st.selectbox("📅 Mês:", MESES_ORDEM, index=mes_atual_numero-1)
-
-    with col_sel2:
-        cat_freq_filt = st.radio("📂 Categoria:", ["Jovens","Adolescentes","Todos"], horizontal=True)
-
+    col_sel1, col_sel2, col_sel3 = st.columns([1, 1, 2])
+    with col_sel1: mes_sel = st.selectbox("📅 Mês:", MESES_ORDEM, key="f_mes", index=mes_atual_numero-1)
+    with col_sel2: cat_freq_filt = st.radio("📂 Categoria:", ["Jovens", "Adolescentes", "Todos"], horizontal=True, key="cat_freq")
+    
     sabados = obter_sabados_do_mes(mes_sel)
-
+    n_sab = len(sabados)
+    
     df_f_base = st.session_state.df_freq[
-        (st.session_state.df_freq["Mês"] == mes_sel) &
+        (st.session_state.df_freq["Mês"] == mes_sel) & 
         (st.session_state.df_freq["Discipulador"].isin(TODOS_DISCIPULADORES_CODIGO))
     ].copy()
-
+    
     if cat_freq_filt != "Todos":
         df_f_base = df_f_base[df_f_base["Categoria"] == cat_freq_filt]
 
@@ -130,94 +119,171 @@ with tab1:
 
     df_f_view = df_f_base[df_f_base["Discipulador"].isin(selecao_nomes)]
 
-    st.dataframe(df_f_view, use_container_width=True)
+    def render_metrics(df_filter, titulo_tipo):
+        cols_me = [f"S{i}_ME" for i in range(1, n_sab+1)]
+        cols_fa = [f"S{i}_FA" for i in range(1, n_sab+1)]
+        cols_vi = [f"S{i}_VI" for i in range(1, n_sab+1)]
+        me = int(df_filter[cols_me].sum().sum()); fa = int(df_filter[cols_fa].sum().sum()); vi = int(df_filter[cols_vi].sum().sum())
+        m1, m2, m3, m4 = st.columns(4)
+        with m1: st.markdown(f'<div class="metric-card"><span class="type-label">{titulo_tipo}</span><p class="metric-label">Membros</p><p class="metric-value">{me}</p></div>', unsafe_allow_html=True)
+        with m2: st.markdown(f'<div class="metric-card"><span class="type-label">{titulo_tipo}</span><p class="metric-label">FA</p><p class="metric-value">{fa}</p></div>', unsafe_allow_html=True)
+        with m3: st.markdown(f'<div class="metric-card"><span class="type-label">{titulo_tipo}</span><p class="metric-label">Visitantes</p><p class="metric-value">{vi}</p></div>', unsafe_allow_html=True)
+        with m4: st.markdown(f'<div class="metric-card" style="border-color:#00D4FF"><span class="type-label">{titulo_tipo}</span><p class="metric-label">Total</p><p class="metric-value">{me+fa+vi}</p></div>', unsafe_allow_html=True)
 
-# ================================
-# ABA 2 FINANÇAS (CORRIGIDA)
-# ================================
+    st.write("### 🏠 Resumo de Células")
+    render_metrics(df_f_view[df_f_view["Tipo"] == "Célula"], "CÉLULA")
+    st.write("### 🎸 Resumo de Culto")
+    render_metrics(df_f_view[df_f_view["Tipo"] == "Culto de Jovens"], "CULTO")
+
+    st.divider()
+    col_g1, col_g2 = st.columns(2)
+    with col_g1:
+        st.write("### 📅 Comparativo Mensal")
+        idx_atual = MESES_ORDEM.index(mes_sel)
+        meses_para_grafico = MESES_ORDEM[max(0, idx_atual-2) : idx_atual+1]
+        df_mensal = st.session_state.df_freq[(st.session_state.df_freq["Mês"].isin(meses_para_grafico)) & (st.session_state.df_freq["Discipulador"].isin(selecao_nomes))].copy()
+        cols_total = [f"S{i}_{ind}" for i in range(1, 6) for ind in ["ME", "FA", "VI"]]
+        df_mensal_soma = df_mensal.groupby(["Mês", "Tipo"], sort=False)[cols_total].sum().sum(axis=1).reset_index(name="Total")
+        fig_mensal = px.bar(df_mensal_soma, x="Mês", y="Total", color="Tipo", barmode="group", text_auto=True, color_discrete_sequence=["#00D4FF", "#0072FF"])
+        fig_mensal.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="white")
+        st.plotly_chart(fig_mensal, use_container_width=True)
+
+    with col_g2:
+        st.write(f"### 📊 Frequência Semanal - {mes_sel}")
+        list_semanal = []
+        for i, data_sab in enumerate(sabados):
+            for ind, cor in CORES_AZYK.items():
+                valor = df_f_view[[f"S{i+1}_{ind}"]].sum().sum()
+                list_semanal.append({"Sábado": data_sab, "Indicador": ind, "Quantidade": valor})
+        if list_semanal:
+            fig_sem = px.line(pd.DataFrame(list_semanal), x="Sábado", y="Quantidade", color="Indicador", markers=True, color_discrete_map=CORES_AZYK)
+            fig_sem.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="white")
+            st.plotly_chart(fig_sem, use_container_width=True)
+
+    st.markdown('<div class="edit-section">', unsafe_allow_html=True)
+    st.markdown("### 📝 Lançamento de Frequência")
+    modo_edicao = st.toggle("Habilitar Edição", value=False)
+    
+    conf_f = {"Mês": None, "Categoria": None, "Discipulador": st.column_config.Column(disabled=True), "Tipo": st.column_config.Column(disabled=True)}
+    for i in range(1, 6):
+        if i <= n_sab:
+            conf_f[f"S{i}_ME"] = st.column_config.NumberColumn(f"{sabados[i-1]}|ME")
+            conf_f[f"S{i}_FA"] = st.column_config.NumberColumn(f"{sabados[i-1]}|FA")
+            conf_f[f"S{i}_VI"] = st.column_config.NumberColumn(f"{sabados[i-1]}|VI")
+        else:
+            conf_f[f"S{i}_ME"] = conf_f[f"S{i}_FA"] = conf_f[f"S{i}_VI"] = None
+    
+    if modo_edicao:
+        df_ed_f = st.data_editor(df_f_view, column_config=conf_f, use_container_width=True, hide_index=True)
+        if st.button("💾 Salvar Frequência"):
+            for _, row in df_ed_f.iterrows():
+                idx = st.session_state.df_freq[(st.session_state.df_freq["Mês"] == row["Mês"]) & (st.session_state.df_freq["Discipulador"] == row["Discipulador"]) & (st.session_state.df_freq["Tipo"] == row["Tipo"])].index
+                st.session_state.df_freq.loc[idx, :] = row.values
+            salvar_dados()
+            st.success("Salvo!"); st.rerun()
+    else:
+        st.dataframe(df_f_view, column_config=conf_f, use_container_width=True, hide_index=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# --- ABA 2: FINANÇAS ---
 with tab2:
-
-    cat_fin_view = st.selectbox("🔍 Ver Finanças de:", ["Todos","Jovens","Adolescentes"])
-
-    mes_status = st.selectbox(
-        "Status no Mês:",
-        MESES_ORDEM,
-        index=mes_atual_numero-1
-    )
-
+    cat_fin_view = st.selectbox("🔍 Ver Finanças de:", ["Todos", "Jovens", "Adolescentes"], key="cat_fin")
     df_fin_filtrado = st.session_state.df.copy()
-
     if cat_fin_view != "Todos":
         df_fin_filtrado = df_fin_filtrado[df_fin_filtrado["Categoria"] == cat_fin_view]
-
-    df_mes = df_fin_filtrado[df_fin_filtrado["Mês"] == mes_status]
-
-    df_pago_mes = df_mes[df_mes["Pago"] == "Sim"]
-
-    st.markdown(f"""
-    <div style="background:linear-gradient(90deg,#1E293B,#0072FF);
-    padding:25px;border-radius:15px;border-left:5px solid #00D4FF;margin-bottom:20px;">
-    <p class="metric-label">Total no Mês ({mes_status})</p>
-    <p style="font-size:36px;font-weight:900;margin:0;">
-    {formatar_brl(df_pago_mes["Valor"].sum())}
-    </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    col1, col2 = st.columns([2,1])
-
-    with col1:
-
+    
+    df_pago = df_fin_filtrado[df_fin_filtrado["Pago"] == "Sim"]
+    
+    st.markdown(f'''<div style="background:linear-gradient(90deg, #1E293B, #0072FF); padding:25px; border-radius:15px; border-left:5px solid #00D4FF; margin-bottom:20px;">
+        <p class="metric-label">Total Acumulado ({cat_fin_view})</p>
+        <p style="font-size:36px; font-weight:900; margin:0;">{formatar_brl(df_pago["Valor"].sum())}</p>
+    </div>''', unsafe_allow_html=True)
+    
+    c1, c2 = st.columns([2, 1.2]) 
+    
+    with c1:
         st.write("### 📈 Evolução de Arrecadação")
-
-        df_pago = df_fin_filtrado[df_fin_filtrado["Pago"] == "Sim"]
-
-        df_evol = df_pago.groupby("Mês")["Valor"].sum().reindex(MESES_ORDEM).fillna(0).reset_index()
-
-        fig = px.line(df_evol, x="Mês", y="Valor", markers=True)
-
-        fig.update_traces(
-            texttemplate='R$ %{y:,.2f}',
-            textposition="top center",
-            line_color="#00D4FF"
+        df_evol = df_pago.groupby("Mês", sort=False)["Valor"].sum().reindex(MESES_ORDEM).fillna(0).reset_index()
+        fig_l = px.line(df_evol, x="Mês", y="Valor", text="Valor", markers=True)
+        fig_l.update_traces(texttemplate='R$ %{y:,.2f}', textposition="top center", line_color="#00D4FF")
+        fig_l.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="white", margin=dict(t=20, b=20))
+        st.plotly_chart(fig_l, use_container_width=True)
+    
+    with c2:
+        m_v = st.selectbox("Status no Mês:", MESES_ORDEM, index=mes_atual_numero-1, key="mes_fin_stat")
+        st.write(f"### 🍩 Status: {m_v}")
+        df_pizza = df_fin_filtrado[df_fin_filtrado["Mês"] == m_v]
+        fig_p = px.pie(
+            df_pizza, 
+            names='Pago', 
+            hole=0.6, 
+            color='Pago',
+            color_discrete_map={'Sim': '#00D4FF', 'Não': '#EF4444'}
         )
-
-        fig.update_layout(
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            font_color="white"
+        fig_p.update_layout(
+            paper_bgcolor="rgba(0,0,0,0)", 
+            plot_bgcolor="rgba(0,0,0,0)", 
+            font_color="white",
+            showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5),
+            margin=dict(t=0, b=0, l=0, r=0)
         )
+        fig_p.update_traces(textposition='inside', textinfo='percent+label')
+        st.plotly_chart(fig_p, use_container_width=True)
 
-        st.plotly_chart(fig, use_container_width=True)
-
-    with col2:
-
-        st.write(f"### 🍩 Status: {mes_status}")
-
-        fig_pizza = px.pie(
-            df_mes,
-            names="Pago",
-            hole=0.6,
-            color="Pago",
-            color_discrete_map={
-                "Sim":"#00D4FF",
-                "Não":"#EF4444"
-            }
-        )
-
-        fig_pizza.update_traces(textinfo="percent+label")
-
-        fig_pizza.update_layout(
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            font_color="white"
-        )
-
-        st.plotly_chart(fig_pizza, use_container_width=True)
-
-# ================================
-# ABA ADMIN (NÃO MODIFICADA)
-# ================================
+# --- ABA 3: ADMIN ---
 if is_admin:
     with tab3:
         st.write("### 👥 Gestão de Líderes")
+        col_adm1, col_adm2 = st.columns(2)
+        with col_adm1:
+            nome_n = st.text_input("Nome:")
+            cat_n = st.selectbox("Categoria:", ["Jovens", "Adolescentes"])
+            if st.button("Confirmar Adição"):
+                if nome_n:
+                    novas_d = pd.DataFrame([{"Mês": m, "Líder": nome_n, "Categoria": cat_n, "Valor": 0.0, "Pago": "Não"} for m in MESES_ORDEM])
+                    st.session_state.df = pd.concat([st.session_state.df, novas_d], ignore_index=True)
+                    novas_f = pd.DataFrame([{"Mês": m, "Discipulador": nome_n, "Categoria": cat_n, "Tipo": t, **{f"S{i}_{ind}": 0 for i in range(1, 6) for ind in ["ME", "FA", "VI"]}} for m in MESES_ORDEM for t in TIPOS])
+                    st.session_state.df_freq = pd.concat([st.session_state.df_freq, novas_f], ignore_index=True)
+                    salvar_dados(); st.success("Adicionado!"); st.rerun()
+        
+        with col_adm2:
+            lider_ex = st.selectbox("Escolher para remover:", sorted(st.session_state.df["Líder"].unique()))
+            if st.button("Excluir Permanentemente"):
+                st.session_state.df = st.session_state.df[st.session_state.df["Líder"] != lider_ex]
+                st.session_state.df_freq = st.session_state.df_freq[st.session_state.df_freq["Discipulador"] != lider_ex]
+                salvar_dados(); st.warning("Removido!"); st.rerun()
+
+        st.divider()
+        st.markdown("### 💰 Lançamento de Dízimos")
+        
+        # --- MELHORIA AQUI: FILTROS DE CATEGORIA PARA DÍZIMOS ---
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            mes_adm = st.selectbox("Mês de Lançamento:", MESES_ORDEM, index=mes_atual_numero-1, key="adm_m")
+        with col_f2:
+            cat_adm = st.radio("Filtrar por Categoria:", ["Jovens", "Adolescentes", "Todos"], horizontal=True, key="cat_adm_fin")
+        
+        # Filtragem do dataframe de edição
+        df_ed_base = st.session_state.df[st.session_state.df["Mês"] == mes_adm].copy()
+        if cat_adm != "Todos":
+            df_ed_base = df_ed_base[df_ed_base["Categoria"] == cat_adm]
+            
+        df_ed_diz = st.data_editor(df_ed_base,
+            use_container_width=True, hide_index=True, 
+            column_config={
+                "Mês": None, 
+                "Líder": st.column_config.Column(disabled=True), 
+                "Categoria": st.column_config.Column(disabled=True),
+                "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f"),
+                "Pago": st.column_config.Column(disabled=True)
+            })
+            
+        if st.button("💾 Salvar Dízimos"):
+            for _, row in df_ed_diz.iterrows():
+                row["Pago"] = "Sim" if row["Valor"] > 0 else "Não"
+                idx = st.session_state.df[(st.session_state.df["Mês"] == row["Mês"]) & (st.session_state.df["Líder"] == row["Líder"])].index
+                st.session_state.df.loc[idx, ["Valor", "Pago"]] = [row["Valor"], row["Pago"]]
+            salvar_dados(); st.success("Salvo!"); st.rerun()
+
+
